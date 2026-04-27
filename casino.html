@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Smooth Mega Slots</title>
+    <style>
+
+        /* Класс для победной вспышки */
+.neon-frame.win-flash {
+    border-color: #00ff88 !important;
+    box-shadow: inset 0 0 50px rgba(0, 255, 136, 0.8), 0 0 50px rgba(0, 255, 136, 0.8) !important;
+    opacity: 1 !important;
+    transition: 0.2s;
+}
+
+        .win-line {
+    position: absolute;
+    height: 6px;
+    background: linear-gradient(90deg, transparent, #ffd700, #fff, #ffd700, transparent);
+    box-shadow: 0 0 15px #ffd700;
+    z-index: 100;
+    top: 50%; left: 0; right: 0;
+    transform: translateY(-50%);
+    display: none; /* По умолчанию скрыта */
+    pointer-events: none;
+}
+.reels-container { position: relative; } /* Нужно для позиционирования линии */
+
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
+
+        @keyframes shake {
+            0% { transform: scale(1.3) translate(1px, 1px) rotate(0deg); }
+            10% { transform: scale(1.3) translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: scale(1.3) translate(-3px, 0px) rotate(1deg); }
+            30% { transform: scale(1.3) translate(3px, 2px) rotate(0deg); }
+            40% { transform: scale(1.3) translate(1px, -1px) rotate(1deg); }
+            50% { transform: scale(1.3) translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: scale(1.3) translate(-3px, 1px) rotate(0deg); }
+            70% { transform: scale(1.3) translate(3px, 1px) rotate(-1deg); }
+            80% { transform: scale(1.3) translate(-1px, -1px) rotate(1deg); }
+            90% { transform: scale(1.3) translate(1px, 2px) rotate(0deg); }
+            100% { transform: scale(1.3) translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .apply-shake { animation: shake 0.5s; }
+
+        #coinCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 999;
+        }
+
+        body {
+            background: #000 url('cas.png') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; transform: translateZ(0);
+        }
+
+        .neon-frame {
+            position: absolute; top: 20px; bottom: 100px; left: 20px; right: 20px;
+            border: 4px solid #ffd700; border-radius: 40px;
+            box-shadow: inset 0 0 25px rgba(255, 215, 0, 0.5), 0 0 25px rgba(255, 215, 0, 0.5);
+            pointer-events: none; opacity: 0.3; z-index: 1;
+        }
+
+        .neon-side {
+            position: absolute; top: 25%; left: 80px; font-size: 4em; font-weight: 900;
+            color: #fff; text-shadow: 0 0 15px #ff00ff, 0 0 30px #ff00ff;
+            transform: rotate(-12deg); pointer-events: none; z-index: 1;
+        }
+
+        .math-panel {
+            position: absolute; top: 30px; right: 60px;
+            background: rgba(0, 0, 0, 0.85); border: 3px solid #00ff88;
+            padding: 20px; border-radius: 20px; width: 240px; text-align: center;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5); z-index: 100;
+        }
+        .math-header { color: #00ff88; font-size: 0.9em; font-weight: bold; margin-bottom: 10px; }
+        .math-q { font-size: 2em; font-weight: bold; margin-bottom: 15px; }
+        .math-a { width: 100px; font-size: 1.8em; text-align: center; border-radius: 8px; padding: 5px; }
+        .math-btn { background: #00ff88; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        .main-ui {
+            display: flex; align-items: center; gap: 40px; z-index: 10;
+            transform: scale(1.3) translateZ(0);
+        }
+
+        .slot-machine {
+            background: linear-gradient(145deg, #333, #111);
+            padding: 30px; border: 8px solid #ffd700; border-radius: 40px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.9);
+        }
+
+        .reels-container {
+            display: flex; gap: 20px; background: #000; padding: 20px;
+            border-radius: 15px; border: inset 6px #444;
+        }
+
+        .reel { width: 130px; height: 160px; background: #111; border-radius: 10px; overflow: hidden; position: relative; }
+
+        .strip { display: flex; flex-direction: column; width: 100%; }
+
+        .symbol { width: 130px; height: 160px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .symbol img { width: 110px; height: 110px; object-fit: contain; }
+
+        .handle-box { width: 80px; height: 240px; position: relative; cursor: pointer; }
+        .stick {
+            width: 18px; height: 160px; background: linear-gradient(to right, #888, #eee, #888);
+            position: absolute; bottom: 60px; left: 31px; transform-origin: bottom;
+            transition: 0.15s ease-out; border-radius: 9px;
+        }
+        .knob {
+            width: 55px; height: 55px; background: radial-gradient(circle, #ff4b1f 0%, #8b0000 100%);
+            border-radius: 50%; position: absolute; top: -27px; left: -19px;
+            box-shadow: 0 0 25px #ff0000;
+        }
+        .handle-active .stick { transform: rotateX(55deg) scaleY(0.5); }
+
+        .info-bar {
+            position: fixed; bottom: 0; width: 100%; height: 80px;
+            background: rgba(0, 0, 0, 0.95); display: flex;
+            justify-content: space-around; align-items: center;
+            border-top: 4px solid #ffd700; z-index: 100;
+        }
+        .stat-label { color: #888; font-size: 0.8em; }
+        .stat-value { color: #ffd700; font-size: 2em; font-weight: 900; }
+        .status-msg { color: #00ff88; font-size: 1.5em; font-weight: bold; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<canvas id="coinCanvas"></canvas>
+<div class="neon-frame"></div>
+<div class="neon-side">BIG WIN</div>
+
+<div class="math-panel">
+    <div class="math-header">МАТЕМАТИЧЕСКИЙ РИСК</div>
+    <div id="math-q" class="math-q">...</div>
+    <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+        <input type="number" id="math-a" class="math-a" placeholder="?">
+        <button onclick="checkMath()" class="math-btn">ОК</button>
+    </div>
+</div>
+
+<div style="position: absolute; top: 150px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100;">
+    <button onclick="setBet(1)" id="btn-x1" style="background: #ffd700; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold;">x1</button>
+    <button onclick="setBet(2)" id="btn-x2" style="background: #444; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold;">x2</button>
+    <button onclick="setBet(5)" id="btn-x5" style="background: #444; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold;">x5</button>
+    <button onclick="setBet(10)" id="btn-x10" style="background: #444; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold;">x10</button>
+    <button onclick="buyVIP()" id="btn-vip" style="background: #ff00ff; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 0 15px #ff00ff;">+2 СЛОТА ($1000)</button>
+    <button onclick="buyGoldenSkin()" id="btn-gold" style="background: linear-gradient(45deg, #ffd700, #b8860b); color: #000; border: 2px solid #fff; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 0 20px #ffd700;">ЗОЛОТОЙ СКИН ($10,000)</button>
+</div>
+
+<div class="main-ui">
+    <div class="slot-machine">
+        <div class="reels-container">
+            <div id="win-line" class="win-line"></div>
+            <div id="reel1" class="reel"><div class="strip"></div></div>
+            <div id="reel2" class="reel"><div class="strip"></div></div>
+            <div id="reel3" class="reel"><div class="strip"></div></div>
+        </div>
+    </div>
+    <div class="handle-box" id="handle" onclick="pull()">
+        <div class="stick"><div class="knob"></div></div>
+    </div>
+</div>
+
+<div class="info-bar">
+    <div class="stat-block">
+        <div class="stat-label">БАЛАНС</div>
+        <div class="stat-value">$<span id="bal">0</span></div>
+    </div>
+    <div id="msg" class="status-msg">УДАЧИ!</div>
+    <div class="stat-block">
+        <div class="stat-label">ПОСЛЕДНИЙ ВИН</div>
+        <div class="stat-value">$<span id="last">0</span></div>
+    </div>
+</div>
+
+<script>
+    // 1. КОНФИГУРАЦИЯ И ПЕРЕМЕННЫЕ
+    const symbols = [
+        { name: 'plum', img: 'plum.png' },
+        { name: 'watermelon', img: 'watermelon.png' },
+        { name: 'seven', img: '7.png' },
+        { name: 'banana', img: 'banana.png' },
+        { name: 'apple', img: 'apple.png' }
+    ];
+    
+    const spinSound = new Audio('go.mp3');
+    const loseSound = new Audio('melsloose.mp3');
+    const winPlumSound = new Audio('mels.mp3');
+
+    let balance = parseInt(localStorage.getItem('casino_balance')) || 100;
+    let currentBet = 1;
+    let spinning = false;
+    let isGolden = false;
+    let vipSlotsActive = false;
+    let curAns = 0;
+    const symH = 160;
+
+    // 2. ОБЩИЕ ФУНКЦИИ
+    function update() {
+        document.getElementById('bal').innerText = balance;
+        localStorage.setItem('casino_balance', balance);
+    }
+
+    function setBet(val) {
+        if (spinning) return;
+        currentBet = val;
+        [1, 2, 5, 10].forEach(v => {
+            const btn = document.getElementById('btn-x' + v);
+            if (btn) {
+                btn.style.background = (v === val) ? '#ffd700' : '#444';
+                btn.style.color = (v === val) ? '#000' : '#fff';
+            }
+        });
+        document.getElementById('msg').innerText = "СТАВКА x" + val;
+    }
+
+    // 3. МАТЕМАТИКА
+    function genMath() {
+        const n1 = Math.floor(Math.random() * 800) + 100;
+        const n2 = Math.floor(Math.random() * 800) + 100;
+        curAns = n1 + n2;
+        document.getElementById('math-q').innerText = `${n1} + ${n2}`;
+    }
+
+    function checkMath() {
+        let userAns = parseInt(document.getElementById('math-a').value);
+        if (userAns === curAns) {
+            let bonus = Math.max(10, Math.floor(balance * 0.1));
+            balance += bonus;
+            document.getElementById('msg').innerText = `ГЕНИЙ! +$${bonus}`;
+            document.getElementById('msg').style.color = "#00ff88";
+        } else {
+            let penalty = Math.floor(balance * 0.15);
+            balance -= penalty;
+            document.getElementById('msg').innerText = "ЛОХ... -$" + penalty;
+            document.getElementById('msg').style.color = "#ff4b1f";
+        }
+        document.getElementById('math-a').value = '';
+        genMath(); update();
+    }
+
+    // 4. ЛОГИКА СЛОТОВ (3 И 5 БАРАБАНОВ)
+    function pull() {
+        const cost = 10 * currentBet;
+        if (spinning || balance < cost) {
+            if (balance < cost) document.getElementById('msg').innerText = "МАЛО ДЕНЕГ!";
+            return;
+        }
+        
+        // СБРОС ЛИНИИ И СОСТОЯНИЯ
+        document.getElementById('win-line').style.display = 'none';
+        spinning = true;
+        balance -= cost;
+        update();
+
+        spinSound.currentTime = 0;
+        spinSound.play();
+        document.getElementById('handle').classList.add('handle-active');
+
+        setTimeout(() => {
+            document.getElementById('handle').classList.remove('handle-active');
+            vipSlotsActive ? start5() : start3();
+        }, 200);
+    }
+
+    function start3() { runSpin([1, 2, 3], finish3); }
+    function start5() { runSpin([0, 1, 2, 3, 4], finish5); }
+
+    function runSpin(reels, callback) {
+        let results = [];
+        const weights = ['plum','plum','plum','apple','apple','banana','watermelon','seven'];
+        
+        reels.forEach((id, i) => {
+            const strip = document.querySelector(`#reel${id} .strip`);
+            strip.style.transition = 'none';
+            strip.style.transform = 'translateY(0)';
+            const count = 40 + (i * 10);
+            const resName = weights[Math.floor(Math.random() * weights.length)];
+            results.push(resName);
+
+            let h = '';
+            for(let j=0; j<count; j++) {
+                const s = symbols[Math.floor(Math.random() * symbols.length)];
+                h += `<div class="symbol"><img src="${s.img}"></div>`;
+            }
+            const target = symbols.find(s => s.name === resName);
+            h += `<div class="symbol"><img src="${target.img}"></div>`;
+            strip.innerHTML = h;
+
+            setTimeout(() => {
+                strip.style.transition = `transform ${2 + i*0.5}s cubic-bezier(0.2, 0.1, 0, 1)`;
+                strip.style.transform = `translateY(-${count * symH}px)`;
+            }, 50);
+        });
+
+        setTimeout(() => { spinning = false; callback(results); }, 2000 + (reels.length * 500));
+    }
+
+    // 5. ПРОВЕРКА ВЫИГРЫША
+    function finish3(res) { checkCombo(res, 33.3); }
+    function finish5(res) { checkCombo(res, 20); }
+
+    function checkCombo(res, slotWidth) {
+        let maxCombo = 1, bestStart = 0, winSym = "";
+        
+        for (let i = 0; i < res.length; i++) {
+            let curCombo = 1;
+            for (let j = i + 1; j < res.length; j++) {
+                if (res[j] === res[i]) curCombo++; else break;
+            }
+            if (curCombo > maxCombo) { maxCombo = curCombo; bestStart = i; winSym = res[i]; }
+        }
+
+        let win = 0;
+        if (maxCombo >= 2) {
+            const prizes = { 2: 15, 3: 50, 4: 100, 5: 500 };
+            win = (prizes[maxCombo] || 0) * currentBet;
+            if (winSym === 'seven' && maxCombo >= 3) win *= 2;
+
+            const line = document.getElementById('win-line');
+            line.style.display = 'block';
+            line.style.left = (bestStart * slotWidth) + "%";
+            line.style.width = (maxCombo * slotWidth) + "%";
+        }
+        applyResult(win, res);
+    }
+
+    function applyResult(win, res) {
+    if (win > 0) {
+        if (isGolden) win *= 2;
+        balance += win;
+        document.getElementById('last').innerText = win;
+        document.getElementById('msg').innerText = "ВЫИГРЫШ!";
+        document.getElementById('msg').style.color = "#ffd700";
+
+        // ВСПЫШКА РАМКИ
+        const frame = document.querySelector('.neon-frame');
+        frame.classList.add('win-flash'); // Включаем зеленый
+        setTimeout(() => frame.classList.remove('win-flash'), 1000); // Выключаем через 1 сек
+
+        if (res.includes('plum')) { winPlumSound.currentTime = 0; winPlumSound.play(); }
+    } else {
+        document.getElementById('msg').innerText = "ПОВЕЗЕТ!";
+        document.getElementById('msg').style.color = "#ff4b1f";
+        loseSound.currentTime = 0; loseSound.play();
+    }
+    update();
+}
+
+    // 6. МАГАЗИН
+    function buyVIP() {
+        if (balance < 1000 || vipSlotsActive) return;
+        balance -= 1000; vipSlotsActive = true;
+        document.getElementById('btn-vip').style.display = 'none';
+        const container = document.querySelector('.reels-container');
+        container.insertAdjacentHTML('afterbegin', '<div id="reel0" class="reel"><div class="strip"></div></div>');
+        container.insertAdjacentHTML('beforeend', '<div id="reel4" class="reel"><div class="strip"></div></div>');
+        document.querySelector('.main-ui').style.transform = "scale(0.9)";
+        update();
+    }
+
+    function buyGoldenSkin() {
+        if (balance < 10000 || isGolden) return;
+        balance -= 10000; isGolden = true;
+        document.getElementById('btn-gold').style.display = 'none';
+        document.body.style.boxShadow = "inset 0 0 100px #ffd700";
+        update();
+    }
+
+    // ИНИЦИАЛИЗАЦИЯ
+    document.getElementById('math-a').addEventListener('keypress', (e) => { if(e.key==='Enter') checkMath(); });
+    genMath(); update();
+    // Заполним начальные слоты
+    for(let i=1; i<=3; i++) {
+        const s = symbols[Math.floor(Math.random()*symbols.length)];
+        document.querySelector(`#reel${i} .strip`).innerHTML = `<div class="symbol"><img src="${s.img}"></div>`;
+    }
+
+    document.addEventListener('keydown', (e) => {
+    // Проверяем нажатие Shift и чтобы курсор не стоял в поле ввода примера
+    if (e.key === 'Shift' && document.activeElement.tagName !== 'INPUT') {
+        pull();
+    }
+});
+</script>
+</body>
+</html>
