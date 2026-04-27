@@ -356,8 +356,8 @@
 
     // 6. МАГАЗИН
     function buyVIP() {
-        if (balance < 1000 || vipSlotsActive) return;
-        balance -= 1000; vipSlotsActive = true;
+        if (balance < 500 || vipSlotsActive) return;
+        balance -= 500; vipSlotsActive = true;
         document.getElementById('btn-vip').style.display = 'none';
         const container = document.querySelector('.reels-container');
         container.insertAdjacentHTML('afterbegin', '<div id="reel0" class="reel"><div class="strip"></div></div>');
